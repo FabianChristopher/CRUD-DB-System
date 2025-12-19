@@ -1,6 +1,23 @@
 // Employee Dashboard Functionality
 const API_BASE_URL = 'http://localhost:3000/api';
 
+// Helper function to get current user info for activity logging
+function getCurrentUserInfo() {
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    return {
+        current_user_id: user.id,
+        current_username: user.username,
+        current_user_type: user.user_type
+    };
+}
+
+// Helper function to add user info to URL query params
+function addUserInfoToUrl(url) {
+    const userInfo = getCurrentUserInfo();
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}current_user_id=${userInfo.current_user_id}&current_username=${encodeURIComponent(userInfo.current_username)}&current_user_type=${userInfo.current_user_type}`;
+}
+
 // Check authentication
 const user = JSON.parse(sessionStorage.getItem('user'));
 if (!user || user.user_type !== 'employee') {
@@ -35,7 +52,9 @@ const biodataModalTitle = document.getElementById('biodataModalTitle');
 const biodataErrorMessage = document.getElementById('biodataErrorMessage');
 
 // Set username
-usernameEl.textContent = user.username;
+if (usernameEl) {
+    usernameEl.textContent = user.username;
+}
 
 // Tab switching
 navItems.forEach(item => {
@@ -74,7 +93,7 @@ navItems.forEach(item => {
 });
 
 // Logout
-logoutBtn.addEventListener('click', () => {
+logoutBtn?.addEventListener('click', () => {
     sessionStorage.removeItem('user');
     window.location.href = 'employee-login.html';
 });
@@ -123,7 +142,8 @@ leaveForm.addEventListener('submit', async (e) => {
         leave_type: formData.get('leaveType'),
         start_date: formData.get('startDate'),
         end_date: formData.get('endDate'),
-        reason: formData.get('reason')
+        reason: formData.get('reason'),
+        ...getCurrentUserInfo()
     };
     
     if (leaveId) {
@@ -162,7 +182,7 @@ leaveForm.addEventListener('submit', async (e) => {
 // Load leave applications
 async function loadLeaveApplications() {
     try {
-        const response = await fetch(`${API_BASE_URL}/leave?employee_id=${user.id}`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/leave?employee_id=${user.id}`));
         const result = await response.json();
         
         if (result.success && result.data.length > 0) {
@@ -222,8 +242,10 @@ window.deleteLeave = async (id) => {
         return;
     }
     
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
     try {
-        const response = await fetch(`${API_BASE_URL}/leave/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/leave/${id}?current_user_id=${user.id}&current_username=${encodeURIComponent(user.username)}&current_user_type=${user.user_type}`, {
             method: 'DELETE'
         });
         
@@ -242,12 +264,12 @@ window.deleteLeave = async (id) => {
 
 // ==================== Biodata Management ====================
 
-// Open biodata modal for adding
-addBiodataBtn.addEventListener('click', () => {
-    biodataModalTitle.textContent = 'Add Biodata';
-    biodataForm.reset();
-    document.getElementById('biodataId').value = '';
-    biodataModal.classList.add('show');
+const editMyProfileBtn = document.getElementById('editMyProfileBtn');
+const profileDisplay = document.getElementById('profileDisplay');
+
+// Open profile edit modal
+editMyProfileBtn.addEventListener('click', () => {
+    openProfileEditModal();
 });
 
 // Close biodata modal
@@ -263,31 +285,22 @@ biodataForm.addEventListener('submit', async (e) => {
     biodataErrorMessage.classList.remove('show');
     
     const formData = new FormData(biodataForm);
-    const biodataId = formData.get('biodataId');
     
     const data = {
         employee_id: user.id,
         full_name: formData.get('fullName'),
-        email: formData.get('email'),
-        phone: formData.get('phone'),
         address: formData.get('address'),
         date_of_birth: formData.get('dateOfBirth'),
         gender: formData.get('gender'),
         position: formData.get('position'),
         department: formData.get('department'),
-        joining_date: formData.get('joiningDate')
+        joining_date: formData.get('joiningDate'),
+        ...getCurrentUserInfo()
     };
     
-    if (biodataId) {
-        data.id = biodataId;
-    }
-    
     try {
-        const url = biodataId ? `${API_BASE_URL}/biodata/${biodataId}` : `${API_BASE_URL}/biodata`;
-        const method = biodataId ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
+        const response = await fetch(`${API_BASE_URL}/biodata`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -311,91 +324,103 @@ biodataForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Load biodata
+// Load biodata - displays employee's profile
 async function loadBiodata() {
     try {
         const response = await fetch(`${API_BASE_URL}/biodata?employee_id=${user.id}`);
         const result = await response.json();
         
-        if (result.success && result.data.length > 0) {
-            biodataTableBody.innerHTML = result.data.map(bio => `
-                <tr>
-                    <td>${bio.full_name}</td>
-                    <td>${bio.email}</td>
-                    <td>${bio.phone}</td>
-                    <td>${bio.position}</td>
-                    <td>${bio.department}</td>
-                    <td>
-                        <div class="action-btns">
-                            <button class="btn-icon-only btn-edit" onclick="editBiodata(${bio.id})" title="Edit">
-                                ✏️
-                            </button>
-                            <button class="btn-icon-only btn-delete" onclick="deleteBiodata(${bio.id})" title="Delete">
-                                🗑️
-                            </button>
+        if (result.success && result.data) {
+            const profile = result.data;
+            profileDisplay.innerHTML = `
+                <div class="profile-card">
+                    <h3>👤 Personal Information</h3>
+                    <div class="profile-grid">
+                        <div class="profile-item">
+                            <label>Username:</label>
+                            <span>${profile.username || 'N/A'}</span>
                         </div>
-                    </td>
-                </tr>
-            `).join('');
+                        <div class="profile-item">
+                            <label>Full Name:</label>
+                            <span>${profile.full_name || 'Not set'}</span>
+                        </div>
+                        <div class="profile-item">
+                            <label>Email:</label>
+                            <span>${profile.email || 'N/A'}</span>
+                        </div>
+                        <div class="profile-item">
+                            <label>Phone:</label>
+                            <span>${profile.phone || 'N/A'}</span>
+                        </div>
+                        <div class="profile-item">
+                            <label>Date of Birth:</label>
+                            <span>${profile.date_of_birth ? formatDate(profile.date_of_birth) : 'Not set'}</span>
+                        </div>
+                        <div class="profile-item">
+                            <label>Gender:</label>
+                            <span>${profile.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1) : 'Not set'}</span>
+                        </div>
+                        <div class="profile-item full-width">
+                            <label>Address:</label>
+                            <span>${profile.address || 'Not set'}</span>
+                        </div>
+                    </div>
+                    
+                    <h3>💼 Work Information</h3>
+                    <div class="profile-grid">
+                        <div class="profile-item">
+                            <label>Position:</label>
+                            <span>${profile.position || 'Not set'}</span>
+                        </div>
+                        <div class="profile-item">
+                            <label>Department:</label>
+                            <span>${profile.department || 'Not set'}</span>
+                        </div>
+                        <div class="profile-item">
+                            <label>Joining Date:</label>
+                            <span>${profile.joining_date ? formatDate(profile.joining_date) : 'Not set'}</span>
+                        </div>
+                        <div class="profile-item">
+                            <label>Account Created:</label>
+                            <span>${formatDate(profile.user_created_at)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
         } else {
-            biodataTableBody.innerHTML = '<tr class="no-data"><td colspan="6">No biodata found</td></tr>';
+            profileDisplay.innerHTML = '<div class="profile-loading">Error loading profile</div>';
         }
     } catch (error) {
         console.error('Error loading biodata:', error);
-        biodataTableBody.innerHTML = '<tr class="no-data"><td colspan="6">Error loading data</td></tr>';
+        profileDisplay.innerHTML = '<div class="profile-loading">Error loading profile</div>';
     }
 }
 
-// Edit biodata
-window.editBiodata = async (id) => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/biodata?id=${id}`);
-        const result = await response.json();
-        
-        if (result.success) {
-            const bio = result.data;
-            biodataModalTitle.textContent = 'Edit Biodata';
-            document.getElementById('biodataId').value = bio.id;
-            document.getElementById('fullName').value = bio.full_name;
-            document.getElementById('email').value = bio.email;
-            document.getElementById('phone').value = bio.phone;
-            document.getElementById('address').value = bio.address;
-            document.getElementById('dateOfBirth').value = formatDateForInput(bio.date_of_birth);
-            document.getElementById('gender').value = bio.gender;
-            document.getElementById('position').value = bio.position;
-            document.getElementById('department').value = bio.department;
-            document.getElementById('joiningDate').value = formatDateForInput(bio.joining_date);
-            biodataModal.classList.add('show');
-        }
-    } catch (error) {
-        console.error('Error loading biodata:', error);
-        alert('Error loading biodata');
-    }
-};
-
-// Delete biodata
-window.deleteBiodata = async (id) => {
-    if (!confirm('Are you sure you want to delete this biodata?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/biodata/${id}`, {
-            method: 'DELETE'
+// Open profile edit modal with current data
+function openProfileEditModal() {
+    fetch(`${API_BASE_URL}/biodata?employee_id=${user.id}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success && result.data) {
+                const profile = result.data;
+                document.getElementById('usernameDisplay').value = profile.username || '';
+                document.getElementById('emailDisplay').value = profile.email || '';
+                document.getElementById('phoneDisplay').value = profile.phone || '';
+                document.getElementById('fullName').value = profile.full_name || '';
+                document.getElementById('address').value = profile.address || '';
+                document.getElementById('dateOfBirth').value = profile.date_of_birth ? formatDateForInput(profile.date_of_birth) : '';
+                document.getElementById('gender').value = profile.gender || '';
+                document.getElementById('position').value = profile.position || '';
+                document.getElementById('department').value = profile.department || '';
+                document.getElementById('joiningDate').value = profile.joining_date ? formatDateForInput(profile.joining_date) : '';
+                biodataModal.classList.add('show');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading profile data');
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            loadBiodata();
-        } else {
-            alert(result.message || 'Error deleting biodata');
-        }
-    } catch (error) {
-        console.error('Error deleting biodata:', error);
-        alert('Error deleting biodata');
-    }
-};
+}
 
 // Utility function to format date
 function formatDate(dateString) {
@@ -512,7 +537,7 @@ document.getElementById('closeGrievanceModal')?.addEventListener('click', () => 
 // Load grievances
 async function loadGrievances() {
     try {
-        const response = await fetch(`${API_BASE_URL}/grievances/employee/${user.id}`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/grievances?employee_id=${user.id}`));
         const result = await response.json();
         
         const tbody = document.getElementById('grievancesTableBody');
@@ -610,7 +635,7 @@ document.getElementById('grievanceForm')?.addEventListener('submit', async (e) =
         const response = await fetch(`${API_BASE_URL}/grievances`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify({...data, ...getCurrentUserInfo()})
         });
         
         const result = await response.json();
@@ -655,7 +680,7 @@ document.getElementById('closeResignationModal')?.addEventListener('click', () =
 // Load resignation
 async function loadResignation() {
     try {
-        const response = await fetch(`${API_BASE_URL}/resignations/employee/${user.id}`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/resignations?employee_id=${user.id}`));
         const result = await response.json();
         
         const tbody = document.getElementById('resignationTableBody');
@@ -723,7 +748,7 @@ document.getElementById('resignationForm')?.addEventListener('submit', async (e)
         const response = await fetch(`${API_BASE_URL}/resignations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify({...data, ...getCurrentUserInfo()})
         });
         
         const result = await response.json();

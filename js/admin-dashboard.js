@@ -7,6 +7,22 @@ if (!user || user.user_type !== 'admin') {
     window.location.href = 'admin-login.html';
 }
 
+// Helper function to get current user info for activity logging
+function getCurrentUserInfo() {
+    return {
+        current_user_id: user.id,
+        current_username: user.username,
+        current_user_type: user.user_type
+    };
+}
+
+// Helper function to add user info to URL query params
+function addUserInfoToUrl(url) {
+    const userInfo = getCurrentUserInfo();
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}current_user_id=${userInfo.current_user_id}&current_username=${encodeURIComponent(userInfo.current_username)}&current_user_type=${userInfo.current_user_type}`;
+}
+
 // DOM Elements
 const usernameEl = document.getElementById('username');
 const pageTitleEl = document.getElementById('pageTitle');
@@ -35,7 +51,9 @@ const biodataEditForm = document.getElementById('biodataEditForm');
 const biodataEditErrorMessage = document.getElementById('biodataEditErrorMessage');
 
 // Set username
-usernameEl.textContent = user.username;
+if (usernameEl) {
+    usernameEl.textContent = user.username;
+}
 
 // Tab switching
 navItems.forEach(item => {
@@ -70,6 +88,12 @@ navItems.forEach(item => {
         } else if (tabName === 'resignations') {
             pageTitleEl.textContent = 'Resignations';
             loadAllResignations();
+        } else if (tabName === 'activityLog') {
+            pageTitleEl.textContent = 'Activity Log';
+            loadActivityLogs(0);
+        } else if (tabName === 'roles') {
+            pageTitleEl.textContent = 'Roles & Permissions';
+            loadAllRoles();
         } else if (tabName === 'addEmployee') {
             pageTitleEl.textContent = 'Manage Employees';
             loadAllEmployees();
@@ -79,7 +103,7 @@ navItems.forEach(item => {
 });
 
 // Logout
-logoutBtn.addEventListener('click', () => {
+logoutBtn?.addEventListener('click', () => {
     sessionStorage.removeItem('user');
     window.location.href = 'admin-login.html';
 });
@@ -94,17 +118,17 @@ document.getElementById('holidayDate')?.addEventListener('change', (e) => {
 });
 
 // Close leave detail modal
-closeLeaveDetailModal.addEventListener('click', () => {
+closeLeaveDetailModal?.addEventListener('click', () => {
     leaveDetailModal.classList.remove('show');
 });
 
 // Close biodata detail modal
-closeBiodataDetailModal.addEventListener('click', () => {
+closeBiodataDetailModal?.addEventListener('click', () => {
     biodataDetailModal.classList.remove('show');
 });
 
 // Close biodata edit modal
-closeBiodataEditModal.addEventListener('click', () => {
+closeBiodataEditModal?.addEventListener('click', () => {
     biodataEditModal.classList.remove('show');
     biodataEditForm.reset();
     biodataEditErrorMessage.classList.remove('show');
@@ -136,7 +160,7 @@ window.addEventListener('click', (e) => {
 // Load all leave applications
 async function loadAllLeaveApplications() {
     try {
-        const response = await fetch(`${API_BASE_URL}/leave?all=true`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/leave?all=true`));
         const result = await response.json();
         
         if (result.success && result.data.length > 0) {
@@ -244,7 +268,10 @@ window.approveLeave = async (id) => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ status: 'approved' })
+            body: JSON.stringify({ 
+                status: 'approved',
+                ...getCurrentUserInfo()
+            })
         });
         
         const result = await response.json();
@@ -273,7 +300,10 @@ window.rejectLeave = async (id) => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ status: 'rejected' })
+            body: JSON.stringify({ 
+                status: 'rejected',
+                ...getCurrentUserInfo()
+            })
         });
         
         const result = await response.json();
@@ -295,26 +325,26 @@ window.rejectLeave = async (id) => {
 // Load all biodata
 async function loadAllBiodata() {
     try {
-        const response = await fetch(`${API_BASE_URL}/biodata?all=true`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/biodata?all=true`));
         const result = await response.json();
         
         if (result.success && result.data.length > 0) {
-            // Update stats - show biodata count, not total employees
+            // Update stats - show total employees count
             totalEmployeeCount.textContent = result.data.length;
             
-            biodataTableBody.innerHTML = result.data.map(bio => `
+            biodataTableBody.innerHTML = result.data.map(emp => `
                 <tr>
-                    <td>${bio.full_name}</td>
-                    <td>${bio.email}</td>
-                    <td>${bio.phone}</td>
-                    <td>${bio.position}</td>
-                    <td>${bio.department}</td>
+                    <td>${emp.full_name || '<span style="color: #999;">Not set</span>'}</td>
+                    <td>${emp.email}</td>
+                    <td>${emp.phone}</td>
+                    <td>${emp.position || '<span style="color: #999;">Not set</span>'}</td>
+                    <td>${emp.department || '<span style="color: #999;">Not set</span>'}</td>
                     <td>
                         <div class="action-btns">
-                            <button class="btn-icon-only btn-view" onclick="viewBiodataDetails(${bio.id})" title="View Details">
+                            <button class="btn-icon-only btn-view" onclick="viewEmployeeProfile(${emp.employee_id})" title="View Profile">
                                 👁️
                             </button>
-                            <button class="btn-icon-only btn-edit" onclick="editBiodataAdmin(${bio.id})" title="Edit">
+                            <button class="btn-icon-only btn-edit" onclick="editEmployeeProfile(${emp.employee_id})" title="Edit Profile">
                                 ✏️
                             </button>
                         </div>
@@ -323,7 +353,7 @@ async function loadAllBiodata() {
             `).join('');
         } else {
             totalEmployeeCount.textContent = '0';
-            biodataTableBody.innerHTML = '<tr class="no-data"><td colspan="6">No employee biodata found</td></tr>';
+            biodataTableBody.innerHTML = '<tr class="no-data"><td colspan="6">No employees found</td></tr>';
         }
     } catch (error) {
         console.error('Error loading biodata:', error);
@@ -331,65 +361,65 @@ async function loadAllBiodata() {
     }
 }
 
-// View biodata details
-window.viewBiodataDetails = async (id) => {
+// View employee profile details
+window.viewEmployeeProfile = async (employeeId) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/biodata?id=${id}`);
+        const response = await fetch(`${API_BASE_URL}/biodata?employee_id=${employeeId}`);
         const result = await response.json();
         
-        if (result.success) {
-            const bio = result.data;
+        if (result.success && result.data) {
+            const profile = result.data;
             biodataDetails.innerHTML = `
                 <div class="detail-item">
-                    <span class="detail-label">Employee:</span>
-                    <span class="detail-value">${bio.username || 'N/A'}</span>
+                    <span class="detail-label">Username:</span>
+                    <span class="detail-value">${profile.username || 'N/A'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Full Name:</span>
-                    <span class="detail-value">${bio.full_name}</span>
+                    <span class="detail-value">${profile.full_name || 'Not set'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Email:</span>
-                    <span class="detail-value">${bio.email}</span>
+                    <span class="detail-value">${profile.email || 'N/A'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Phone:</span>
-                    <span class="detail-value">${bio.phone}</span>
+                    <span class="detail-value">${profile.phone || 'N/A'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Date of Birth:</span>
-                    <span class="detail-value">${formatDate(bio.date_of_birth)}</span>
+                    <span class="detail-value">${profile.date_of_birth ? formatDate(profile.date_of_birth) : 'Not set'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Gender:</span>
-                    <span class="detail-value">${capitalizeFirst(bio.gender)}</span>
+                    <span class="detail-value">${profile.gender ? capitalizeFirst(profile.gender) : 'Not set'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Address:</span>
-                    <span class="detail-value">${bio.address}</span>
+                    <span class="detail-value">${profile.address || 'Not set'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Position:</span>
-                    <span class="detail-value">${bio.position}</span>
+                    <span class="detail-value">${profile.position || 'Not set'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Department:</span>
-                    <span class="detail-value">${bio.department}</span>
+                    <span class="detail-value">${profile.department || 'Not set'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Joining Date:</span>
-                    <span class="detail-value">${formatDate(bio.joining_date)}</span>
+                    <span class="detail-value">${profile.joining_date ? formatDate(profile.joining_date) : 'Not set'}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Created At:</span>
-                    <span class="detail-value">${formatDateTime(bio.created_at)}</span>
+                    <span class="detail-label">Account Created:</span>
+                    <span class="detail-value">${formatDateTime(profile.user_created_at)}</span>
                 </div>
             `;
             biodataDetailModal.classList.add('show');
         }
     } catch (error) {
-        console.error('Error loading biodata details:', error);
-        alert('Error loading biodata details');
+        console.error('Error loading employee profile:', error);
+        alert('Error loading employee profile');
     }
 };
 
@@ -440,29 +470,30 @@ function formatDateForInput(dateString) {
 // ==================== Admin Biodata Edit Functions ====================
 
 // Edit biodata as admin
-window.editBiodataAdmin = async (id) => {
+// Edit employee profile
+window.editEmployeeProfile = async (employeeId) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/biodata?id=${id}`);
+        const response = await fetch(`${API_BASE_URL}/biodata?employee_id=${employeeId}`);
         const result = await response.json();
         
-        if (result.success) {
-            const bio = result.data;
-            document.getElementById('editBiodataId').value = bio.id;
-            document.getElementById('editEmployeeId').value = bio.employee_id;
-            document.getElementById('editFullName').value = bio.full_name;
-            document.getElementById('editEmail').value = bio.email;
-            document.getElementById('editPhone').value = bio.phone;
-            document.getElementById('editAddress').value = bio.address;
-            document.getElementById('editDateOfBirth').value = formatDateForInput(bio.date_of_birth);
-            document.getElementById('editGender').value = bio.gender;
-            document.getElementById('editPosition').value = bio.position;
-            document.getElementById('editDepartment').value = bio.department;
-            document.getElementById('editJoiningDate').value = formatDateForInput(bio.joining_date);
+        if (result.success && result.data) {
+            const profile = result.data;
+            document.getElementById('biodataEmployeeId').value = employeeId;
+            document.getElementById('editUsername').value = profile.username || '';
+            document.getElementById('editEmailDisplay').value = profile.email || '';
+            document.getElementById('editPhoneDisplay').value = profile.phone || '';
+            document.getElementById('editFullName').value = profile.full_name || '';
+            document.getElementById('editAddress').value = profile.address || '';
+            document.getElementById('editDateOfBirth').value = profile.date_of_birth ? formatDateForInput(profile.date_of_birth) : '';
+            document.getElementById('editGender').value = profile.gender || '';
+            document.getElementById('editPosition').value = profile.position || '';
+            document.getElementById('editDepartment').value = profile.department || '';
+            document.getElementById('editJoiningDate').value = profile.joining_date ? formatDateForInput(profile.joining_date) : '';
             biodataEditModal.classList.add('show');
         }
     } catch (error) {
-        console.error('Error loading biodata:', error);
-        alert('Error loading biodata');
+        console.error('Error loading employee profile:', error);
+        alert('Error loading employee profile');
     }
 };
 
@@ -472,23 +503,23 @@ biodataEditForm.addEventListener('submit', async (e) => {
     biodataEditErrorMessage.classList.remove('show');
     
     const formData = new FormData(biodataEditForm);
-    const biodataId = formData.get('biodataId');
+    const employeeId = formData.get('employeeId');
     
     const data = {
+        employee_id: employeeId,
         full_name: formData.get('fullName'),
-        email: formData.get('email'),
-        phone: formData.get('phone'),
         address: formData.get('address'),
         date_of_birth: formData.get('dateOfBirth'),
         gender: formData.get('gender'),
         position: formData.get('position'),
         department: formData.get('department'),
-        joining_date: formData.get('joiningDate')
+        joining_date: formData.get('joiningDate'),
+        ...getCurrentUserInfo()
     };
     
     try {
-        const response = await fetch(`${API_BASE_URL}/biodata/${biodataId}`, {
-            method: 'PUT',
+        const response = await fetch(`${API_BASE_URL}/biodata`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -498,7 +529,7 @@ biodataEditForm.addEventListener('submit', async (e) => {
         const result = await response.json();
         
         if (result.success) {
-            alert('Biodata updated successfully');
+            alert('Employee profile updated successfully');
             biodataEditModal.classList.remove('show');
             biodataEditForm.reset();
             loadAllBiodata();
@@ -549,7 +580,7 @@ async function loadEmployeesForSalary() {
 // Load all salaries
 async function loadAllSalaries() {
     try {
-        const response = await fetch(`${API_BASE_URL}/salaries`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/salaries`));
         const result = await response.json();
         
         const tbody = document.getElementById('salariesTableBody');
@@ -595,7 +626,8 @@ document.getElementById('addSalaryForm')?.addEventListener('submit', async (e) =
         allowances: document.getElementById('allowances').value || 0,
         deductions: document.getElementById('deductions').value || 0,
         month: document.getElementById('salaryMonth').value,
-        year: document.getElementById('salaryYear').value
+        year: document.getElementById('salaryYear').value,
+        ...getCurrentUserInfo()
     };
     
     console.log('Submitting salary data:', data);
@@ -632,8 +664,10 @@ document.getElementById('addSalaryForm')?.addEventListener('submit', async (e) =
 async function deleteSalary(id) {
     if (!confirm('Are you sure you want to delete this salary record?')) return;
     
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
     try {
-        const response = await fetch(`${API_BASE_URL}/salaries/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/salaries/${id}?current_user_id=${user.id}&current_username=${encodeURIComponent(user.username)}&current_user_type=${user.user_type}`, {
             method: 'DELETE'
         });
         
@@ -656,7 +690,7 @@ async function deleteSalary(id) {
 // Load all holidays
 async function loadAllHolidays() {
     try {
-        const response = await fetch(`${API_BASE_URL}/holidays`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/holidays`));
         const result = await response.json();
         
         const tbody = document.getElementById('holidaysTableBody');
@@ -707,7 +741,8 @@ document.getElementById('addHolidayForm')?.addEventListener('submit', async (e) 
         holiday_name: document.getElementById('holidayName').value,
         holiday_date: holidayDate,
         year: year,
-        description: document.getElementById('holidayDescription').value
+        description: document.getElementById('holidayDescription').value,
+        ...getCurrentUserInfo()
     };
     
     console.log('Submitting holiday data:', data);
@@ -744,8 +779,10 @@ document.getElementById('addHolidayForm')?.addEventListener('submit', async (e) 
 async function deleteHoliday(id) {
     if (!confirm('Are you sure you want to delete this holiday?')) return;
     
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
     try {
-        const response = await fetch(`${API_BASE_URL}/holidays/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/holidays/${id}?current_user_id=${user.id}&current_username=${encodeURIComponent(user.username)}&current_user_type=${user.user_type}`, {
             method: 'DELETE'
         });
         
@@ -770,7 +807,7 @@ let currentGrievanceId = null;
 // Load all grievances
 async function loadAllGrievances() {
     try {
-        const response = await fetch(`${API_BASE_URL}/grievances`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/grievances`));
         const result = await response.json();
         
         const tbody = document.getElementById('grievancesTableBody');
@@ -856,7 +893,8 @@ document.getElementById('respondGrievanceForm')?.addEventListener('submit', asyn
     
     const data = {
         status: document.getElementById('grievanceStatus').value,
-        admin_response: document.getElementById('grievanceResponse').value
+        admin_response: document.getElementById('grievanceResponse').value,
+        ...getCurrentUserInfo()
     };
     
     try {
@@ -889,7 +927,7 @@ let currentResignationId = null;
 // Load all resignations
 async function loadAllResignations() {
     try {
-        const response = await fetch(`${API_BASE_URL}/resignations`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/resignations`));
         const result = await response.json();
         
         const tbody = document.getElementById('resignationsTableBody');
@@ -973,7 +1011,8 @@ document.getElementById('respondResignationForm')?.addEventListener('submit', as
     
     const data = {
         status: document.getElementById('resignationStatus').value,
-        admin_notes: document.getElementById('resignationNotes').value
+        admin_notes: document.getElementById('resignationNotes').value,
+        ...getCurrentUserInfo()
     };
     
     try {
@@ -1004,7 +1043,7 @@ document.getElementById('respondResignationForm')?.addEventListener('submit', as
 // Load all employees
 async function loadAllEmployees() {
     try {
-        const response = await fetch(`${API_BASE_URL}/users`);
+        const response = await fetch(addUserInfoToUrl(`${API_BASE_URL}/users`));
         const result = await response.json();
         
         const tbody = document.getElementById('employeesTableBody');
@@ -1013,47 +1052,48 @@ async function loadAllEmployees() {
         if (result.success && result.employees && result.employees.length > 0) {
             document.getElementById('totalEmployeesCount').textContent = result.employees.length;
             
-            result.employees.forEach(emp => {
+            // Load all roles first to have available
+            const rolesResponse = await fetch(`${API_BASE_URL}/roles`);
+            const rolesResult = await rolesResponse.json();
+            const allRoles = rolesResult.success ? rolesResult.roles : [];
+            
+            // Process each employee
+            for (const emp of result.employees) {
                 const row = document.createElement('tr');
                 
-                // Safely create cells
-                const cells = [
-                    emp.username,
-                    emp.full_name || '<em>Not provided</em>',
-                    emp.email || '<em>Not provided</em>',
-                    emp.position || '<em>Not provided</em>',
-                    emp.department || '<em>Not provided</em>',
-                    formatDate(emp.created_at)
-                ];
+                // Fetch roles for this employee
+                let userRoles = [];
+                try {
+                    const userRolesResponse = await fetch(`${API_BASE_URL}/users/${emp.id}/roles`);
+                    const userRolesResult = await userRolesResponse.json();
+                    if (userRolesResult.success) {
+                        userRoles = userRolesResult.roles;
+                    }
+                } catch (err) {
+                    console.error(`Error fetching roles for user ${emp.id}:`, err);
+                }
                 
-                cells.forEach(content => {
-                    const cell = document.createElement('td');
-                    cell.innerHTML = content;
-                    row.appendChild(cell);
-                });
-                
-                // Create action buttons safely
-                const actionCell = document.createElement('td');
-                const editBtn = document.createElement('button');
-                editBtn.className = 'btn btn-sm';
-                editBtn.textContent = 'Edit';
-                editBtn.onclick = () => editEmployee(emp.id, emp.username);
-                
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'btn btn-sm btn-danger';
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.onclick = () => deleteEmployee(emp.id, emp.username);
-                
-                actionCell.appendChild(editBtn);
-                actionCell.appendChild(document.createTextNode(' '));
-                actionCell.appendChild(deleteBtn);
-                row.appendChild(actionCell);
+                // Create cells
+                row.innerHTML = `
+                    <td>${emp.username}</td>
+                    <td>${emp.full_name || '<em>Not provided</em>'}</td>
+                    <td>${emp.email || '<em>Not provided</em>'}</td>
+                    <td>${emp.position || '<em>Not provided</em>'}</td>
+                    <td>${emp.department || '<em>Not provided</em>'}</td>
+                    <td>${userRoles.length > 0 ? userRoles.map(r => `<span class="badge badge-info">${r.role_name}</span>`).join(' ') : '<em>No roles</em>'}</td>
+                    <td>${formatDate(emp.created_at)}</td>
+                    <td class="action-btns">
+                        <button class="btn btn-sm" onclick="manageUserRoles(${emp.id}, '${emp.username}')">Manage Roles</button>
+                        <button class="btn btn-sm" onclick="editEmployee(${emp.id}, '${emp.username}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${emp.id}, '${emp.username}')">Delete</button>
+                    </td>
+                `;
                 
                 tbody.appendChild(row);
-            });
+            }
         } else {
             document.getElementById('totalEmployeesCount').textContent = '0';
-            tbody.innerHTML = '<tr class="no-data"><td colspan="7">No employees found</td></tr>';
+            tbody.innerHTML = '<tr class="no-data"><td colspan="8">No employees found</td></tr>';
         }
     } catch (error) {
         console.error('Error loading employees:', error);
@@ -1084,7 +1124,8 @@ document.getElementById('editEmployeeForm')?.addEventListener('submit', async (e
     const id = document.getElementById('editEmployeeId').value;
     const data = {
         username: document.getElementById('editEmployeeUsername').value.trim(),
-        password: document.getElementById('editEmployeePassword').value.trim()
+        password: document.getElementById('editEmployeePassword').value.trim(),
+        ...getCurrentUserInfo()
     };
     
     if (!data.username) {
@@ -1124,8 +1165,10 @@ async function deleteEmployee(id, username) {
         return;
     }
     
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
     try {
-        const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/users/${id}?current_user_id=${user.id}&current_username=${encodeURIComponent(user.username)}&current_user_type=${user.user_type}`, {
             method: 'DELETE'
         });
         
@@ -1155,14 +1198,33 @@ document.getElementById('addEmployeeForm')?.addEventListener('submit', async (e)
     
     const data = {
         username: document.getElementById('newUsername').value.trim(),
+        email: document.getElementById('newEmail').value.trim(),
+        phone: document.getElementById('newPhone').value.trim(),
         password: document.getElementById('newPassword').value.trim()
     };
     
-    console.log('Submitting employee data:', { username: data.username, password: '***' });
+    console.log('Submitting employee data:', { username: data.username, email: data.email, phone: data.phone, password: '***' });
     
     // Validate required fields
-    if (!data.username || !data.password) {
-        errorMsg.textContent = 'Username and password are required';
+    if (!data.username || !data.email || !data.phone || !data.password) {
+        errorMsg.textContent = 'Username, email, phone and password are required';
+        errorMsg.classList.add('show');
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+        errorMsg.textContent = 'Please enter a valid email address';
+        errorMsg.classList.add('show');
+        return;
+    }
+    
+    // Validate phone format
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    const digitsOnly = data.phone.replace(/\D/g, '');
+    if (!phoneRegex.test(data.phone) || digitsOnly.length < 10) {
+        errorMsg.textContent = 'Please enter a valid phone number (at least 10 digits)';
         errorMsg.classList.add('show');
         return;
     }
@@ -1171,7 +1233,7 @@ document.getElementById('addEmployeeForm')?.addEventListener('submit', async (e)
         const response = await fetch(`${API_BASE_URL}/add-employee`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify({...data, ...getCurrentUserInfo()})
         });
         
         const result = await response.json();
@@ -1195,6 +1257,127 @@ document.getElementById('addEmployeeForm')?.addEventListener('submit', async (e)
     }
 });
 
+// ==================== Activity Log Management ====================
+
+let currentActivityPage = 0;
+const activityLimit = 50;
+let activityFilters = {};
+
+// Load Activity Logs
+async function loadActivityLogs(offset = 0) {
+    try {
+        const params = new URLSearchParams({
+            limit: activityLimit,
+            offset: offset,
+            ...activityFilters
+        });
+
+        const response = await fetch(`${API_BASE_URL}/activity-logs?${params}`);
+        const result = await response.json();
+
+        const tableBody = document.getElementById('activityLogTableBody');
+
+        if (result.success && result.data.length > 0) {
+            tableBody.innerHTML = result.data.map(log => {
+                const date = new Date(log.created_at);
+                const formattedDate = date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const actionBadge = getActionBadge(log.action);
+
+                return `
+                    <tr>
+                        <td>${formattedDate}</td>
+                        <td>${log.username || 'N/A'}</td>
+                        <td><span class="badge badge-${log.user_type === 'admin' ? 'warning' : 'info'}">${log.user_type || 'N/A'}</span></td>
+                        <td>${actionBadge}</td>
+                        <td>${log.description || '-'}</td>
+                        <td>${log.ip_address || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Update pagination
+            const pagination = document.getElementById('activityPagination');
+            pagination.style.display = 'block';
+            
+            const pageInfo = document.getElementById('pageInfo');
+            const currentPage = Math.floor(offset / activityLimit) + 1;
+            const totalPages = Math.ceil(result.total / activityLimit);
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${result.total} total records)`;
+
+            document.getElementById('prevPageBtn').disabled = offset === 0;
+            document.getElementById('nextPageBtn').disabled = offset + activityLimit >= result.total;
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                        No activity logs found
+                    </td>
+                </tr>
+            `;
+            document.getElementById('activityPagination').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading activity logs:', error);
+        document.getElementById('activityLogTableBody').innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #f44336;">
+                    Failed to load activity logs
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Get action badge HTML
+function getActionBadge(action) {
+    const badges = {
+        'LOGIN': '<span class="badge badge-success">LOGIN</span>',
+        'LOGIN_FAILED': '<span class="badge badge-danger">LOGIN FAILED</span>',
+        'SIGNUP': '<span class="badge badge-info">SIGNUP</span>',
+        'EMAIL_VERIFIED': '<span class="badge badge-success">EMAIL VERIFIED</span>',
+        'BIODATA_ADD': '<span class="badge badge-primary">ADD BIODATA</span>',
+        'BIODATA_UPDATE': '<span class="badge badge-warning">UPDATE BIODATA</span>',
+        'LEAVE_ADD': '<span class="badge badge-primary">ADD LEAVE</span>',
+        'LEAVE_UPDATE': '<span class="badge badge-warning">UPDATE LEAVE</span>'
+    };
+    
+    return badges[action] || `<span class="badge">${action}</span>`;
+}
+
+// Apply filters
+function applyActivityFilters() {
+    activityFilters = {};
+    
+    const action = document.getElementById('filterAction').value;
+    const startDate = document.getElementById('filterStartDate').value;
+    const endDate = document.getElementById('filterEndDate').value;
+    
+    if (action) activityFilters.action = action;
+    if (startDate) activityFilters.start_date = startDate;
+    if (endDate) activityFilters.end_date = endDate;
+    
+    currentActivityPage = 0;
+    loadActivityLogs(0);
+}
+
+// Load activity page
+function loadActivityPage(direction) {
+    if (direction === 'next') {
+        currentActivityPage++;
+    } else if (direction === 'prev' && currentActivityPage > 0) {
+        currentActivityPage--;
+    }
+    
+    loadActivityLogs(currentActivityPage * activityLimit);
+}
+
 // Make functions globally accessible
 window.deleteSalary = deleteSalary;
 window.deleteHoliday = deleteHoliday;
@@ -1202,6 +1385,297 @@ window.viewGrievance = viewGrievance;
 window.viewResignation = viewResignation;
 window.editEmployee = editEmployee;
 window.deleteEmployee = deleteEmployee;
-
-// Initial load
+window.applyActivityFilters = applyActivityFilters;
+window.loadActivityPage = loadActivityPage;
+window.deleteRole = deleteRole;
 loadAllLeaveApplications();
+
+// ==================== Roles Management ====================
+
+async function loadAllRoles() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/roles`);
+        const result = await response.json();
+        
+        const tbody = document.getElementById('rolesTableBody');
+        tbody.innerHTML = '';
+        
+        if (result.success && result.roles && result.roles.length > 0) {
+            document.getElementById('totalRolesCount').textContent = result.roles.length;
+            
+            result.roles.forEach(role => {
+                const row = document.createElement('tr');
+                
+                // Count enabled permissions
+                const enabledPermissions = Object.entries(role.permissions)
+                    .filter(([key, value]) => value === true)
+                    .map(([key]) => key.replace(/_/g, ' '));
+                
+                const permissionsBadges = enabledPermissions.slice(0, 3).map(p => 
+                    `<span class="permission-badge">${p}</span>`
+                ).join('');
+                
+                const moreCount = enabledPermissions.length > 3 ? ` +${enabledPermissions.length - 3} more` : '';
+                
+                row.innerHTML = `
+                    <td><strong>${role.role_name}</strong></td>
+                    <td>${role.description || '<em>No description</em>'}</td>
+                    <td>${permissionsBadges}${moreCount}</td>
+                    <td>${role.assigned_users_count || 0} users</td>
+                    <td>${formatDate(role.created_at)}</td>
+                    <td class="action-btns">
+                        <button class="btn btn-sm btn-danger" onclick="deleteRole(${role.id}, '${role.role_name}')">Delete</button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        } else {
+            document.getElementById('totalRolesCount').textContent = '0';
+            tbody.innerHTML = '<tr class="no-data"><td colspan="6">No roles found</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading roles:', error);
+    }
+}
+
+async function deleteRole(id, roleName) {
+    if (!confirm(`Are you sure you want to delete the role "${roleName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/roles/${id}?current_user_id=${user.id}&current_username=${encodeURIComponent(user.username)}&current_user_type=${user.user_type}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Role deleted successfully');
+            loadAllRoles();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error deleting role:', error);
+        alert('Error deleting role');
+    }
+}
+
+// Handle create role form submission
+document.getElementById('createRoleForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const roleName = document.getElementById('roleName').value;
+    const roleDescription = document.getElementById('roleDescription').value;
+    
+    // Collect permissions
+    const checkboxes = document.querySelectorAll('input[name="permission"]');
+    const permissions = {};
+    
+    checkboxes.forEach(checkbox => {
+        permissions[checkbox.value] = checkbox.checked;
+    });
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/roles`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                role_name: roleName,
+                description: roleDescription,
+                permissions,
+                ...getCurrentUserInfo()
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('roleSuccessMessage').textContent = 'Role created successfully!';
+            document.getElementById('roleErrorMessage').textContent = '';
+            document.getElementById('createRoleForm').reset();
+            loadAllRoles();
+            
+            setTimeout(() => {
+                document.getElementById('roleSuccessMessage').textContent = '';
+            }, 3000);
+        } else {
+            document.getElementById('roleErrorMessage').textContent = result.message;
+            document.getElementById('roleSuccessMessage').textContent = '';
+        }
+    } catch (error) {
+        console.error('Error creating role:', error);
+        document.getElementById('roleErrorMessage').textContent = 'Error creating role';
+    }
+});
+
+// ==================== User Role Assignment ====================
+
+let currentUserIdForRoles = null;
+let currentUsernameForRoles = null;
+
+// Open manage roles modal
+async function manageUserRoles(userId, username) {
+    currentUserIdForRoles = userId;
+    currentUsernameForRoles = username;
+    
+    document.getElementById('roleModalUsername').textContent = username;
+    document.getElementById('roleAssignSuccessMessage').textContent = '';
+    document.getElementById('roleAssignErrorMessage').textContent = '';
+    
+    // Load all available roles
+    try {
+        const response = await fetch(`${API_BASE_URL}/roles`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const select = document.getElementById('roleToAssign');
+            select.innerHTML = '<option value="">-- Select a role --</option>';
+            
+            result.roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role.id;
+                option.textContent = role.role_name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading roles:', error);
+    }
+    
+    // Load current user roles
+    await loadCurrentUserRoles(userId);
+    
+    // Show modal
+    document.getElementById('manageRolesModal').classList.add('show');
+}
+
+// Load current roles for user
+async function loadCurrentUserRoles(userId) {
+    const container = document.getElementById('currentRolesList');
+    container.innerHTML = '<em style="color: var(--text-secondary);">Loading...</em>';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}/roles`);
+        const result = await response.json();
+        
+        if (result.success && result.roles && result.roles.length > 0) {
+            container.innerHTML = '';
+            
+            result.roles.forEach(role => {
+                const roleTag = document.createElement('div');
+                roleTag.className = 'role-tag';
+                roleTag.innerHTML = `
+                    <span class="badge badge-primary">${role.role_name}</span>
+                    <button class="btn-remove-role" onclick="removeRoleFromUser(${role.id}, '${role.role_name}')" title="Remove role">×</button>
+                `;
+                container.appendChild(roleTag);
+            });
+        } else {
+            container.innerHTML = '<em style="color: var(--text-secondary);">No roles assigned</em>';
+        }
+    } catch (error) {
+        console.error('Error loading user roles:', error);
+        container.innerHTML = '<em style="color: var(--error);">Error loading roles</em>';
+    }
+}
+
+// Assign role to user
+async function assignRoleToUser() {
+    const roleId = document.getElementById('roleToAssign').value;
+    
+    if (!roleId) {
+        document.getElementById('roleAssignErrorMessage').textContent = 'Please select a role';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/${currentUserIdForRoles}/roles`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                role_id: parseInt(roleId),
+                ...getCurrentUserInfo()
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('roleAssignSuccessMessage').textContent = 'Role assigned successfully!';
+            document.getElementById('roleAssignErrorMessage').textContent = '';
+            document.getElementById('roleToAssign').value = '';
+            
+            // Reload current roles
+            await loadCurrentUserRoles(currentUserIdForRoles);
+            
+            // Reload employees table to show updated roles
+            setTimeout(() => {
+                loadAllEmployees();
+                document.getElementById('roleAssignSuccessMessage').textContent = '';
+            }, 1500);
+        } else {
+            document.getElementById('roleAssignErrorMessage').textContent = result.message;
+            document.getElementById('roleAssignSuccessMessage').textContent = '';
+        }
+    } catch (error) {
+        console.error('Error assigning role:', error);
+        document.getElementById('roleAssignErrorMessage').textContent = 'Error assigning role';
+    }
+}
+
+// Remove role from user
+async function removeRoleFromUser(roleId, roleName) {
+    if (!confirm(`Remove role "${roleName}" from ${currentUsernameForRoles}?`)) {
+        return;
+    }
+    
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/${currentUserIdForRoles}/roles/${roleId}?current_user_id=${user.id}&current_username=${encodeURIComponent(user.username)}&current_user_type=${user.user_type}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('roleAssignSuccessMessage').textContent = 'Role removed successfully!';
+            document.getElementById('roleAssignErrorMessage').textContent = '';
+            
+            // Reload current roles
+            await loadCurrentUserRoles(currentUserIdForRoles);
+            
+            // Reload employees table to show updated roles
+            setTimeout(() => {
+                loadAllEmployees();
+                document.getElementById('roleAssignSuccessMessage').textContent = '';
+            }, 1500);
+        } else {
+            document.getElementById('roleAssignErrorMessage').textContent = result.message;
+        }
+    } catch (error) {
+        console.error('Error removing role:', error);
+        document.getElementById('roleAssignErrorMessage').textContent = 'Error removing role';
+    }
+}
+
+// Close manage roles modal
+document.getElementById('closeManageRolesModal')?.addEventListener('click', () => {
+    document.getElementById('manageRolesModal').classList.remove('show');
+    currentUserIdForRoles = null;
+    currentUsernameForRoles = null;
+});
+
+// Make role management functions globally accessible
+window.manageUserRoles = manageUserRoles;
+window.assignRoleToUser = assignRoleToUser;
+window.removeRoleFromUser = removeRoleFromUser;

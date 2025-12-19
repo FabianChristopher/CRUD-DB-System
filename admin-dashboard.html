@@ -41,9 +41,14 @@
                 <button class="nav-item" data-tab="resignations">
                     <span class="nav-icon">📤</span>
                     <span>Resignations</span>
-                </button>
-                <button class="nav-item" data-tab="addEmployee">
-                    <span class="nav-icon">�</span>
+                </button>                <button class="nav-item" data-tab="activityLog">
+                    <span class="nav-icon">📊</span>
+                    <span>Activity Log</span>
+                </button>                <button class="nav-item" data-tab="roles">
+                    <span class="nav-icon">🔐</span>
+                    <span>Roles & Permissions</span>
+                </button>                <button class="nav-item" data-tab="addEmployee">
+                    <span class="nav-icon">👥</span>
                     <span>Manage Employees</span>
                 </button>
             </nav>
@@ -371,6 +376,139 @@
                 </div>
             </div>
 
+            <!-- Activity Log Tab -->
+            <div id="activityLogTab" class="tab-content">
+                <h2 class="tab-title">📊 Activity Log</h2>
+                
+                <div class="form-card" style="margin-bottom: 20px;">
+                    <h3>Filters</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="form-group">
+                            <label for="filterAction">Action Type</label>
+                            <select id="filterAction" class="form-input">
+                                <option value="">All Actions</option>
+                                <option value="LOGIN">Login</option>
+                                <option value="LOGIN_FAILED">Failed Login</option>
+                                <option value="SIGNUP">Signup</option>
+                                <option value="EMAIL_VERIFIED">Email Verified</option>
+                                <option value="BIODATA_ADD">Add Biodata</option>
+                                <option value="BIODATA_UPDATE">Update Biodata</option>
+                                <option value="LEAVE_ADD">Add Leave</option>
+                                <option value="LEAVE_UPDATE">Update Leave</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="filterStartDate">Start Date</label>
+                            <input type="date" id="filterStartDate" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="filterEndDate">End Date</label>
+                            <input type="date" id="filterEndDate" class="form-input">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button onclick="applyActivityFilters()" class="btn-primary" style="width: 100%;">Apply Filters</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Type</th>
+                                <th>Action</th>
+                                <th>Description</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityLogTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px;">
+                                    Loading activity logs...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination" id="activityPagination" style="margin-top: 20px; text-align: center; display: none;">
+                    <button onclick="loadActivityPage('prev')" class="btn-secondary" id="prevPageBtn">Previous</button>
+                    <span id="pageInfo" style="margin: 0 20px;">Page 1</span>
+                    <button onclick="loadActivityPage('next')" class="btn-primary" id="nextPageBtn">Next</button>
+                </div>
+            </div>
+
+            <!-- Roles & Permissions Tab -->
+            <div class="tab-content" id="rolesTab">
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <h3>Total Roles</h3>
+                        <p class="stat-number" id="totalRolesCount">0</p>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <h3>Create New Role</h3>
+                    <form id="createRoleForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="roleName">Role Name</label>
+                                <input type="text" id="roleName" required placeholder="e.g., HR Manager">
+                            </div>
+                            <div class="form-group">
+                                <label for="roleDescription">Description</label>
+                                <input type="text" id="roleDescription" placeholder="Brief description of role">
+                            </div>
+                        </div>
+
+                        <div class="permissions-grid" style="margin-top: 1rem;">
+                            <h4 style="grid-column: 1 / -1; margin-bottom: 0.5rem;">Permissions:</h4>
+                            <label><input type="checkbox" name="permission" value="view_employees"> View Employees</label>
+                            <label><input type="checkbox" name="permission" value="manage_employees"> Manage Employees</label>
+                            <label><input type="checkbox" name="permission" value="view_leave"> View Leave</label>
+                            <label><input type="checkbox" name="permission" value="approve_leave"> Approve Leave</label>
+                            <label><input type="checkbox" name="permission" value="view_salaries"> View Salaries</label>
+                            <label><input type="checkbox" name="permission" value="manage_salaries"> Manage Salaries</label>
+                            <label><input type="checkbox" name="permission" value="view_grievances"> View Grievances</label>
+                            <label><input type="checkbox" name="permission" value="manage_grievances"> Manage Grievances</label>
+                            <label><input type="checkbox" name="permission" value="view_holidays"> View Holidays</label>
+                            <label><input type="checkbox" name="permission" value="manage_holidays"> Manage Holidays</label>
+                            <label><input type="checkbox" name="permission" value="view_resignations"> View Resignations</label>
+                            <label><input type="checkbox" name="permission" value="manage_resignations"> Manage Resignations</label>
+                            <label><input type="checkbox" name="permission" value="view_activity_logs"> View Activity Logs</label>
+                            <label><input type="checkbox" name="permission" value="manage_roles"> Manage Roles</label>
+                        </div>
+
+                        <div class="success-message" id="roleSuccessMessage"></div>
+                        <div class="error-message" id="roleErrorMessage"></div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Create Role</button>
+                    </form>
+                </div>
+
+                <div class="table-card">
+                    <h3>All Roles</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Role Name</th>
+                                <th>Description</th>
+                                <th>Permissions</th>
+                                <th>Assigned Users</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rolesTableBody">
+                            <tr class="no-data">
+                                <td colspan="6">Loading roles...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Manage Employees Tab -->
             <div id="addEmployeeTab" class="tab-content">
                 <div class="stats-container">
@@ -388,6 +526,16 @@
                             <div class="form-group">
                                 <label for="newUsername">Username</label>
                                 <input type="text" id="newUsername" required placeholder="Enter username">
+                            </div>
+                            <div class="form-group">
+                                <label for="newEmail">Email</label>
+                                <input type="email" id="newEmail" required placeholder="Enter email">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="newPhone">Phone Number</label>
+                                <input type="tel" id="newPhone" required placeholder="Enter phone number">
                             </div>
                             <div class="form-group">
                                 <label for="newPassword">Password</label>
@@ -410,13 +558,14 @@
                                 <th>Email</th>
                                 <th>Position</th>
                                 <th>Department</th>
+                                <th>Roles</th>
                                 <th>Joined</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="employeesTableBody">
                             <tr class="no-data">
-                                <td colspan="7">No employees found</td>
+                                <td colspan="8">No employees found</td>
                             </tr>
                         </tbody>
                     </table>
@@ -454,62 +603,68 @@
     <div id="biodataEditModal" class="modal">
         <div class="modal-content large">
             <span class="close" id="closeBiodataEditModal">&times;</span>
-            <h2 id="biodataEditModalTitle">Edit Employee Biodata</h2>
+            <h2 id="biodataEditModalTitle">Edit Employee Profile</h2>
             <form id="biodataEditForm">
-                <input type="hidden" id="editBiodataId" name="biodataId">
-                <input type="hidden" id="editEmployeeId" name="employeeId">
+                <input type="hidden" id="biodataEmployeeId" name="employeeId">
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="editFullName">Full Name</label>
-                        <input type="text" id="editFullName" name="fullName" required placeholder="Enter full name">
+                        <label>Username (Read-only)</label>
+                        <input type="text" id="editUsername" readonly style="background: #f5f5f5;">
                     </div>
                     <div class="form-group">
-                        <label for="editEmail">Email</label>
-                        <input type="email" id="editEmail" name="email" required placeholder="Enter email">
+                        <label for="editFullName">Full Name</label>
+                        <input type="text" id="editFullName" name="fullName" placeholder="Enter full name">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="editPhone">Phone</label>
-                        <input type="tel" id="editPhone" name="phone" required placeholder="Enter phone number">
+                        <label>Email (Read-only)</label>
+                        <input type="email" id="editEmailDisplay" readonly style="background: #f5f5f5;">
                     </div>
+                    <div class="form-group">
+                        <label>Phone (Read-only)</label>
+                        <input type="tel" id="editPhoneDisplay" readonly style="background: #f5f5f5;">
+                    </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label for="editDateOfBirth">Date of Birth</label>
-                        <input type="date" id="editDateOfBirth" name="dateOfBirth" required>
+                        <input type="date" id="editDateOfBirth" name="dateOfBirth">
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="editAddress">Address</label>
-                    <textarea id="editAddress" name="address" required rows="2" placeholder="Enter address"></textarea>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label for="editGender">Gender</label>
-                        <select id="editGender" name="gender" required>
+                        <select id="editGender" name="gender">
                             <option value="">Select gender</option>
                             <option value="male">Male</option>
                             <option value="female">Female</option>
                             <option value="other">Other</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="editAddress">Address</label>
+                    <textarea id="editAddress" name="address" rows="2" placeholder="Enter address"></textarea>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label for="editPosition">Position</label>
-                        <input type="text" id="editPosition" name="position" required placeholder="Enter position">
+                        <input type="text" id="editPosition" name="position" placeholder="Enter position">
+                    </div>
+                    <div class="form-group">
+                        <label for="editDepartment">Department</label>
+                        <input type="text" id="editDepartment" name="department" placeholder="Enter department">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="editDepartment">Department</label>
-                        <input type="text" id="editDepartment" name="department" required placeholder="Enter department">
-                    </div>
-                    <div class="form-group">
                         <label for="editJoiningDate">Joining Date</label>
-                        <input type="date" id="editJoiningDate" name="joiningDate" required>
+                        <input type="date" id="editJoiningDate" name="joiningDate">
                     </div>
                 </div>
 
@@ -590,6 +745,40 @@
                 <div class="error-message" id="editEmployeeErrorMessage"></div>
                 <button type="submit" class="btn btn-primary">Update Employee</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Manage Roles Modal -->
+    <div id="manageRolesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeManageRolesModal">&times;</span>
+            <h2>Manage User Roles</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                <strong>Employee:</strong> <span id="roleModalUsername"></span>
+            </p>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Current Roles</h3>
+                <div id="currentRolesList" style="display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 40px;">
+                    <!-- Current roles will be displayed here -->
+                </div>
+            </div>
+
+            <div>
+                <h3>Assign New Role</h3>
+                <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="roleToAssign">Select Role</label>
+                        <select id="roleToAssign" class="form-control">
+                            <option value="">-- Select a role --</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="assignRoleToUser()" style="height: 40px;">Assign Role</button>
+                </div>
+            </div>
+
+            <div class="success-message" id="roleAssignSuccessMessage"></div>
+            <div class="error-message" id="roleAssignErrorMessage"></div>
         </div>
     </div>
 

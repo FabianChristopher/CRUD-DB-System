@@ -7,10 +7,47 @@ npm install
 npm start
 ```
 
-**⚠️ If you get "Access denied" error:**
-1. Open `server.js`
-2. Change line 4: `const MYSQL_ROOT_PASSWORD = ... || 'root';` to your MySQL password
-3. Run `npm start` again
+**⚠️ Configuration Required:**
+1. Create a `.env` file in the project root (see Configuration section below)
+2. Add your MySQL credentials and email settings
+3. Run `npm start` to start the server
+
+**📧 Email Configuration:**
+The system sends verification emails on signup. Configure your SMTP settings in `.env`.
+
+---
+
+## Configuration
+
+### Environment Variables Setup
+
+Create a `.env` file in the project root directory with the following variables:
+
+```env
+# Database Configuration
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=          # Leave empty for Mac, add password for Windows
+MYSQL_DATABASE=employee_admin_system
+MYSQL_PORT=3306
+
+# Email Configuration (for verification emails)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password    # Use Gmail App Password
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+
+# Server Configuration
+PORT=3000
+```
+
+**🔐 Security Note:** The `.env` file stores sensitive credentials securely and is automatically excluded from version control via `.gitignore`.
+
+**📧 Gmail App Password Setup:**
+1. Go to your Google Account settings
+2. Enable 2-Factor Authentication
+3. Generate an App Password for "Mail"
+4. Use that 16-character password in `EMAIL_PASSWORD`
 
 ---
 
@@ -215,86 +252,135 @@ http://localhost:3000
 
 ## 🎯 Features
 
-### Admin Features (8 Modules)
+### Admin Features (9 Modules)
 
 #### 1. **Leave Applications Management**
 - View all employee leave requests in a centralized table
 - See leave details: employee name, leave type, dates, duration, reason
 - Review and monitor leave status (pending, approved, rejected)
+- Approve or reject leave requests with admin remarks
+- **Date validation**: End date must be after or equal to start date
 - Click 👁️ icon to expand full leave details
 
 #### 2. **Employee Biodata Management**
 - Access complete employee profiles and personal information
 - View all biodata: full name, email, phone, address, DOB, gender, position, department, joining date
 - Monitor employee information across the organization
+- Edit employee biodata
 - Click 👁️ icon to view detailed biodata
 
 #### 3. **Payroll/Salary Management**
 - Add salary records for any employee with detailed breakdown
-- Input: Basic salary, allowances (HRA, travel, medical, special)
-- Deductions: Provident fund, professional tax, income tax, other deductions
-- Auto-calculates: Total salary, total deductions, net salary
+- Input: Basic salary, HRA, allowances, deductions
+- **Validation**: Rejects negative values for salary components
+- Auto-calculates: Net salary (basic + HRA + allowances - deductions)
 - Auto-assigns payment date (current date)
 - View all salary records in a table format
+- Update existing salary records
 - Delete salary records with confirmation
 - Employee dropdown shows all registered users
 
 #### 4. **Company Holiday Calendar**
 - Add company-wide holidays for the year
-- Input: Holiday name and date
+- Input: Holiday name, date, description, year
 - Auto-extracts year from selected date
 - View all holidays organized by date
+- Edit existing holidays
 - Delete holidays with confirmation
 - Helps plan workforce scheduling
 
 #### 5. **Grievance Management System**
 - View all employee grievances in centralized dashboard
-- See grievance details: employee name, subject, description, status, submission date
-- Statuses: Pending, Under Review, Resolved
+- See grievance details: employee name, category, subject, description, priority, status, submission date
+- Categories: Workplace Environment, Harassment, Salary/Benefits, Management, Other
+- Priority levels: Low, Medium, High
+- Statuses: Pending, In Progress, Resolved
 - Click "View Details" to see full grievance and respond
 - Provide admin response/resolution notes
-- Update grievance status (Pending → Under Review → Resolved)
+- Update grievance status (Pending → In Progress → Resolved)
 - Real-time updates reflect in employee portal
 
 #### 6. **Resignation Management System**
 - View all resignation requests from employees
 - See details: Employee name, reason, last working day, submission date, status
-- Statuses: Pending, Accepted, Rejected
+- Statuses: Pending, Approved, Rejected
 - Click "View Details" to review resignation
-- Add admin notes (feedback, exit process details, etc.)
-- Accept or Reject resignations
+- Add admin remarks (feedback, exit process details, etc.)
+- Approve or Reject resignations
 - Updates reflect immediately in employee portal
 
-#### 7. **Manage Employees (User Management)**
-- View all registered employees in a table
-- See: User ID, Username, User Type, Account Creation Date
-- Shows "Not provided" for employees without biodata
-- Add new employee accounts (username + password)
-- Edit existing employees (change username/password)
-- Delete employees (removes user and all related data: leave, biodata, salary, grievances, resignations)
-- Confirmation dialog before deletion to prevent accidental data loss
+#### 7. **Activity Log (Audit Trail)**
+- Comprehensive logging of all system activities
+- View logs with: User, Action Type, Description, IP Address, Timestamp
+- Action types tracked:
+  - LOGIN, LOGIN_FAILED, SIGNUP, EMAIL_VERIFIED
+  - USER_CREATED, USER_UPDATED, USER_DELETED
+  - BIODATA_ADD, BIODATA_UPDATE, BIODATA_DELETE
+  - LEAVE_ADD, LEAVE_UPDATE, LEAVE_DELETE
+  - SALARY_ADDED, SALARY_UPDATED, SALARY_DELETED
+  - GRIEVANCE_ADD, GRIEVANCE_UPDATE
+  - RESIGNATION_ADD, RESIGNATION_UPDATE
+  - ROLE_CREATED, ROLE_UPDATED, ROLE_DELETED
+  - ROLE_ASSIGNED, ROLE_REMOVED
+- Search functionality to find specific activities
+- Filter by action type
+- Pagination for large datasets
+- Full audit trail for compliance and security
 
-#### 8. **Statistics Dashboard**
-- Total employees count
-- Total leave applications
-- Pending requests
-- Approved requests
-- Total salary records
-- Total holidays
+#### 8. **Roles & Permissions (IAM System)**
+- **4 Default Roles** automatically created:
+  - **Super Admin**: Full system access (14/14 permissions)
+  - **HR Manager**: HR operations (11/14 permissions)
+  - **Department Manager**: Team management (5/14 permissions)
+  - **Employee**: Basic access (2/14 permissions)
+- **Create Custom Roles** with granular permissions:
+  - view_employees, manage_employees
+  - view_leave, approve_leave
+  - view_salaries, manage_salaries
+  - view_grievances, manage_grievances
+  - view_holidays, manage_holidays
+  - view_resignations, manage_resignations
+  - view_activity_logs, manage_roles
+- Edit role permissions and descriptions
+- Delete custom roles (default roles protected)
+- View role details: permissions, assigned users count
+- Permission-based access control (PBAC)
+
+#### 9. **Manage Employees (User Management + Role Assignment)**
+- View all registered employees in a comprehensive table
+- Columns: Username, Full Name, Email, Position, Department, Roles, Joined Date, Actions
+- **Role badges** showing all assigned roles per user
+- Add new employee accounts with:
+  - Username, email, phone (with format validation)
+  - Password (securely hashed)
+  - Email/phone uniqueness validation
+- Edit existing employees (change username/password)
+- **Manage Roles** button for each employee:
+  - View current assigned roles
+  - Assign multiple roles to users
+  - Remove roles with one click
+  - Role dropdown shows all available roles
+- Delete employees (removes user and all related data via CASCADE)
+- Confirmation dialogs to prevent accidental data loss
+- Real-time role updates with visual feedback
 
 ### Employee Features (6 Modules)
 
 #### 1. **Leave Management**
 - Submit leave applications with type, dates, and reason
+- Leave types: Sick Leave, Casual Leave, Annual Leave, Emergency Leave, Maternity/Paternity Leave
 - View personal leave history in a table
 - Edit pending leave applications
 - Delete leave applications
 - See status: Pending, Approved, Rejected
+- View admin remarks on approved/rejected leaves
+- **Validation**: End date cannot be before start date
 - Auto-calculates leave duration
 
 #### 2. **My Biodata**
 - Add personal biodata information
 - Fields: Full name, email, phone, address, date of birth, gender, position, department, joining date
+- **Phone validation**: Minimum 10 digits, proper format
 - Edit biodata details
 - Delete biodata records
 - View complete profile information
@@ -501,87 +587,176 @@ When you run `npm start`, the application automatically:
 
 ## Database Schema
 
-### 7 Tables Created Automatically:
+### 10 Tables Created Automatically:
 
 #### 1. `users` - User accounts
-- id, username, password (hashed), user_type (admin/employee), created_at
+- id, username, email (unique, nullable), phone (unique, nullable), password (hashed), user_type (admin/employee), email_verified, verification_token, token_expiry, created_at
 
 #### 2. `leave_applications` - Leave requests
-- id, employee_id (FK), leave_type, start_date, end_date, reason, status (pending/approved/rejected), created_at, updated_at
+- id, employee_id (FK), leave_type, start_date, end_date, reason, status (pending/approved/rejected), admin_remarks, created_at, updated_at
 
 #### 3. `biodata` - Employee profiles
-- id, employee_id (FK), full_name, email, phone, address, date_of_birth, gender, position, department, joining_date, created_at, updated_at
+- id, employee_id (FK, UNIQUE), full_name, email, phone, address, date_of_birth, gender, position, department, joining_date, created_at, updated_at
 
 #### 4. `salaries` - Payroll records
-- id, employee_id (FK), basic_salary, hra, travel_allowance, medical_allowance, special_allowance, pf, professional_tax, income_tax, other_deductions, total_salary, total_deductions, net_salary, payment_date, created_at
+- id, employee_id (FK), basic_salary, hra, allowances, deductions, net_salary, month, year, payment_date, created_at, updated_at
 
 #### 5. `company_holidays` - Holiday calendar
-- id, holiday_name, holiday_date, year, created_at
+- id, holiday_name, holiday_date, description, year, created_at, updated_at
 
 #### 6. `grievances` - Employee grievances
-- id, employee_id (FK), subject, description, status (pending/under_review/resolved), admin_response, created_at, updated_at
+- id, employee_id (FK), category, subject, description, priority, status (pending/in_progress/resolved), admin_remarks, resolution, created_at, updated_at
 
 #### 7. `resignations` - Resignation requests
-- id, employee_id (FK), reason, last_working_day, status (pending/accepted/rejected), admin_notes, created_at, updated_at
+- id, employee_id (FK), reason, last_working_day, remarks, status (pending/approved/rejected), admin_remarks, created_at, updated_at
 
-**Foreign Keys:** All tables with employee_id have CASCADE delete - when user is deleted, all related records are automatically removed.
+#### 8. `activity_logs` - System audit trail
+- id, user_id (nullable), action, description, ip_address, created_at
+
+#### 9. `roles` - IAM roles
+- id, role_name (unique), description, permissions (JSON with 14 permission flags), created_at, updated_at
+
+#### 10. `user_roles` - Role assignments (many-to-many)
+- id, user_id (FK), role_id (FK), assigned_at, assigned_by, UNIQUE(user_id, role_id)
+
+**Foreign Keys:** All tables with employee_id/user_id have CASCADE delete - when user is deleted, all related records are automatically removed.
+
+**Default Data:**
+- Admin user (username: admin, password: admin123)
+- 4 default roles: Super Admin, HR Manager, Department Manager, Employee
 
 ---
 
-## API Endpoints (35+)
+## API Endpoints (48 Total)
 
-### Authentication
+### Authentication (2)
 - `POST /api/signup` - Register new user
 - `POST /api/login` - Authenticate user
 
-### Leave Management
+### Leave Management (6)
 - `GET /api/leave?employee_id={id}` - Get employee's leaves
 - `GET /api/leave?id={id}` - Get single leave
 - `GET /api/leave?all=true` - Get all leaves (admin)
-- `POST /api/leave` - Create leave
+- `POST /api/leave` - Create leave (validates date range)
 - `PUT /api/leave/:id` - Update leave
 - `DELETE /api/leave/:id` - Delete leave
 
-### Biodata Management
+### Biodata Management (6)
 - `GET /api/biodata?employee_id={id}` - Get employee's biodata
 - `GET /api/biodata?id={id}` - Get single biodata
 - `GET /api/biodata?all=true` - Get all biodata (admin)
-- `POST /api/biodata` - Create biodata
+- `POST /api/biodata` - Create biodata (validates phone format)
 - `PUT /api/biodata/:id` - Update biodata
 - `DELETE /api/biodata/:id` - Delete biodata
 
-### Salary Management
+### Salary Management (5)
 - `GET /api/salaries?employee_id={id}` - Get employee's salaries
 - `GET /api/salaries?all=true` - Get all salaries (admin)
-- `POST /api/salaries` - Add salary record (admin)
+- `POST /api/salaries` - Add salary record (validates negative values, auto-calculates net)
+- `PUT /api/salaries/:id` - Update salary record
 - `DELETE /api/salaries/:id` - Delete salary record (admin)
 
-### Holiday Management
+### Holiday Management (4)
 - `GET /api/holidays` - Get all holidays
 - `GET /api/holidays?year={year}` - Get holidays by year
 - `POST /api/holidays` - Add holiday (admin)
+- `PUT /api/holidays/:id` - Update holiday
 - `DELETE /api/holidays/:id` - Delete holiday (admin)
 
-### Grievance Management
+### Grievance Management (5)
 - `GET /api/grievances?employee_id={id}` - Get employee's grievances
 - `GET /api/grievances?id={id}` - Get single grievance
 - `GET /api/grievances?all=true` - Get all grievances (admin)
 - `POST /api/grievances` - Submit grievance (employee)
 - `PUT /api/grievances/:id` - Update grievance status/response (admin)
 
-### Resignation Management
+### Resignation Management (5)
 - `GET /api/resignations?employee_id={id}` - Get employee's resignations
 - `GET /api/resignations?id={id}` - Get single resignation
 - `GET /api/resignations?all=true` - Get all resignations (admin)
 - `POST /api/resignations` - Submit resignation (employee)
 - `PUT /api/resignations/:id` - Accept/Reject resignation (admin)
 
-### User Management
+### User Management (5)
 - `GET /api/users` - Get all users (admin)
 - `GET /api/users/:id` - Get single user (admin)
-- `POST /api/users` - Create new employee account (admin)
+- `POST /api/add-employee` - Create new employee account (validates email/phone format, checks duplicates)
 - `PUT /api/users/:id` - Update user (admin)
 - `DELETE /api/users/:id` - Delete user and all related data (admin)
+
+### Roles & Permissions (8)
+- `GET /api/roles` - Get all roles
+- `GET /api/roles/:id` - Get single role
+- `POST /api/roles` - Create custom role with permissions
+- `PUT /api/roles/:id` - Update role permissions
+- `DELETE /api/roles/:id` - Delete custom role
+- `POST /api/users/:id/roles` - Assign role to user
+- `DELETE /api/users/:id/roles/:roleId` - Remove role from user
+- `GET /api/users/:id/roles` - Get user's assigned roles
+- `POST /api/users/:id/check-permission` - Check if user has specific permission
+
+### Activity Logging (2)
+- `GET /api/activity-logs?page={n}&limit={m}` - Get activity logs with pagination
+- `GET /api/activity-logs/search?query={text}` - Search activity logs
+
+### Email Verification (2)
+- `POST /api/send-verification` - Send verification email
+- `GET /api/verify-email?token={token}` - Verify email with token
+
+---
+
+## Security Features
+
+✅ **Password Security**
+- Bcrypt hashing (10 salt rounds)
+- Passwords never stored in plain text
+
+✅ **SQL Injection Protection**
+- All queries use parameterized statements
+- Input sanitization and validation
+
+✅ **Input Validation**
+- Email format validation (regex)
+- Phone format validation (min 10 digits)
+- Date range validation (end >= start)
+- Negative number validation for salaries
+- Duplicate username/email/phone detection
+
+✅ **Data Integrity**
+- Foreign key constraints
+- CASCADE delete for related records
+- UNIQUE constraints on critical fields
+- NOT NULL validation for required fields
+
+✅ **Audit Trail**
+- All user actions logged with timestamps
+- IP address tracking
+- Action type categorization
+- Search and filter capabilities
+
+✅ **Access Control**
+- Session-based authentication
+- Role-based access control (RBAC)
+- 14 granular permissions
+- Multi-role assignment support
+
+---
+
+## Testing & Documentation
+
+📄 **TESTING_GUIDE.md** - Step-by-step testing instructions for all features
+📄 **FINAL_TESTING_REPORT.md** - Comprehensive test results and system status
+📄 **test-comprehensive.js** - Automated test suite for backend APIs
+📄 **test-all-features.sh** - Shell script to run all tests
+
+### Testing Quick Start
+```bash
+# Ensure server is running first
+node server.js
+
+# In another terminal, run tests
+node test-comprehensive.js
+```
 
 ---
 

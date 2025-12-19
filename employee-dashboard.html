@@ -89,27 +89,11 @@
             <!-- Biodata Tab -->
             <div id="biodataTab" class="tab-content">
                 <div class="actions-bar">
-                    <button class="btn btn-primary" id="addBiodataBtn">+ Add Biodata</button>
+                    <button class="btn btn-primary" id="editMyProfileBtn">✏️ Edit My Profile</button>
                 </div>
 
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Full Name</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Position</th>
-                                <th>Department</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="biodataTableBody">
-                            <tr class="no-data">
-                                <td colspan="6">No biodata found</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div id="profileDisplay" class="profile-display">
+                    <div class="profile-loading">Loading profile...</div>
                 </div>
             </div>
 
@@ -304,67 +288,74 @@
     <div id="biodataModal" class="modal">
         <div class="modal-content large">
             <span class="close" id="closeBiodataModal">&times;</span>
-            <h2 id="biodataModalTitle">Add Biodata</h2>
+            <h2 id="biodataModalTitle">Edit My Profile</h2>
             <form id="biodataForm">
                 <input type="hidden" id="biodataId" name="biodataId">
                 
                 <div class="form-row">
                     <div class="form-group">
                         <label for="fullName">Full Name</label>
-                        <input type="text" id="fullName" name="fullName" required placeholder="Enter full name">
+                        <input type="text" id="fullName" name="fullName" placeholder="Enter full name">
                     </div>
                     <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" required placeholder="Enter email">
+                        <label>Username (Read-only)</label>
+                        <input type="text" id="usernameDisplay" readonly style="background: #f5f5f5;">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="phone">Phone</label>
-                        <input type="tel" id="phone" name="phone" required placeholder="Enter phone number">
+                        <label>Email (Read-only)</label>
+                        <input type="email" id="emailDisplay" readonly style="background: #f5f5f5;">
                     </div>
+                    <div class="form-group">
+                        <label>Phone (Read-only)</label>
+                        <input type="tel" id="phoneDisplay" readonly style="background: #f5f5f5;">
+                    </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label for="dateOfBirth">Date of Birth</label>
-                        <input type="date" id="dateOfBirth" name="dateOfBirth" required>
+                        <input type="date" id="dateOfBirth" name="dateOfBirth">
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="address">Address</label>
-                    <textarea id="address" name="address" required rows="2" placeholder="Enter address"></textarea>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label for="gender">Gender</label>
-                        <select id="gender" name="gender" required>
+                        <select id="gender" name="gender">
                             <option value="">Select gender</option>
                             <option value="male">Male</option>
                             <option value="female">Female</option>
                             <option value="other">Other</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="address">Address</label>
+                    <textarea id="address" name="address" rows="2" placeholder="Enter address"></textarea>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label for="position">Position</label>
-                        <input type="text" id="position" name="position" required placeholder="Enter position">
+                        <input type="text" id="position" name="position" placeholder="Enter position">
+                    </div>
+                    <div class="form-group">
+                        <label for="department">Department</label>
+                        <input type="text" id="department" name="department" placeholder="Enter department">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="department">Department</label>
-                        <input type="text" id="department" name="department" required placeholder="Enter department">
-                    </div>
-                    <div class="form-group">
                         <label for="joiningDate">Joining Date</label>
-                        <input type="date" id="joiningDate" name="joiningDate" required>
+                        <input type="date" id="joiningDate" name="joiningDate">
                     </div>
                 </div>
 
                 <div class="error-message" id="biodataErrorMessage"></div>
 
-                <button type="submit" class="btn btn-primary">Submit</button>
+                <button type="submit" class="btn btn-primary">Save Profile</button>
             </form>
         </div>
     </div>

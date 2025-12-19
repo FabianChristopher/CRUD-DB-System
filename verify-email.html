@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification - Employee Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .verification-container {
+            max-width: 600px;
+            margin: 100px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .verification-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        .verification-icon.success {
+            color: #4CAF50;
+        }
+        
+        .verification-icon.error {
+            color: #f44336;
+        }
+        
+        .verification-icon.loading {
+            color: #2196F3;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .verification-title {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .verification-message {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .verification-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-secondary {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+    <div class="verification-container">
+        <div id="loading-state">
+            <div class="verification-icon loading">⏳</div>
+            <h1 class="verification-title">Verifying Your Email...</h1>
+            <p class="verification-message">Please wait while we verify your email address.</p>
+        </div>
+
+        <div id="success-state" style="display: none;">
+            <div class="verification-icon success">✓</div>
+            <h1 class="verification-title">Email Verified Successfully!</h1>
+            <p class="verification-message">Your email has been verified. You can now log in to your account.</p>
+            <div class="verification-actions">
+                <a href="employee-login.html" class="btn btn-primary">Go to Employee Login</a>
+                <a href="admin-login.html" class="btn btn-secondary">Go to Admin Login</a>
+            </div>
+        </div>
+
+        <div id="error-state" style="display: none;">
+            <div class="verification-icon error">✗</div>
+            <h1 class="verification-title">Verification Failed</h1>
+            <p class="verification-message" id="error-message">The verification link is invalid or has expired.</p>
+            <div class="verification-actions">
+                <a href="index.html" class="btn btn-primary">Go to Home</a>
+            </div>
+        </div>
+
+        <div id="already-verified-state" style="display: none;">
+            <div class="verification-icon success">✓</div>
+            <h1 class="verification-title">Already Verified</h1>
+            <p class="verification-message">Your email is already verified. You can log in to your account.</p>
+            <div class="verification-actions">
+                <a href="employee-login.html" class="btn btn-primary">Go to Employee Login</a>
+                <a href="admin-login.html" class="btn btn-secondary">Go to Admin Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get token from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        if (!token) {
+            showError('No verification token provided.');
+        } else {
+            verifyEmail(token);
+        }
+
+        async function verifyEmail(token) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/verify-email?token=${token}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.alreadyVerified) {
+                        showAlreadyVerified();
+                    } else {
+                        showSuccess();
+                    }
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                console.error('Verification error:', error);
+                showError('An error occurred while verifying your email. Please try again later.');
+            }
+        }
+
+        function showSuccess() {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('success-state').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('error-state').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        function showAlreadyVerified() {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('already-verified-state').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
