@@ -410,131 +410,40 @@ function createAllTables(tempConnection, resolve, reject) {
 
                                                             console.log('✅ User roles table ready');
 
-                                // Migration: Add email verification columns if they don't exist
-                                tempConnection.query(
-                                    `SELECT COLUMN_NAME 
-                                     FROM INFORMATION_SCHEMA.COLUMNS 
-                                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'email_verified'`,
-                                    [dbConfig.database],
-                                    (err, results) => {
-                                        if (err) {
-                                            console.log('⚠️ Could not check for email_verified column:', err.message);
-                                        } else if (results.length === 0) {
-                                            // Column doesn't exist, add it
-                                            tempConnection.query(
-                                                `ALTER TABLE users 
-                                                 ADD COLUMN email_verified BOOLEAN DEFAULT FALSE,
-                                                 ADD COLUMN verification_token VARCHAR(255),
-                                                 ADD COLUMN token_expiry DATETIME`,
-                                                (err) => {
-                                                    if (err) {
-                                                        console.log('⚠️ Failed to add email verification columns:', err.message);
-                                                    } else {
-                                                        console.log('✅ Email verification columns added');
-                                                    }
-                                                }
-                                            );
-                                        } else {
-                                            console.log('✅ Email verification columns already exist');
-                                        }
-                                    }
-                                );
-
-                                // Migration: Remove email and phone from biodata table if they exist
-                                tempConnection.query(
-                                    `SELECT COLUMN_NAME 
-                                     FROM INFORMATION_SCHEMA.COLUMNS 
-                                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'biodata' AND COLUMN_NAME IN ('email', 'phone')`,
-                                    [dbConfig.database],
-                                    (err, results) => {
-                                        if (err) {
-                                            console.log('⚠️ Could not check biodata columns:', err.message);
-                                        } else if (results.length > 0) {
-                                            // Columns exist, drop them
-                                            const columns = results.map(r => r.COLUMN_NAME);
-                                            const dropStatements = columns.map(col => `DROP COLUMN ${col}`).join(', ');
-                                            tempConnection.query(
-                                                `ALTER TABLE biodata ${dropStatements}`,
-                                                (err) => {
-                                                    if (err) {
-                                                        console.log('⚠️ Failed to remove email/phone from biodata:', err.message);
-                                                    } else {
-                                                        console.log('✅ Removed duplicate email/phone columns from biodata');
-                                                    }
-                                                }
-                                            );
-                                        }
-                                    }
-                                );
-
-                                // Migration: Add UNIQUE constraint to biodata.employee_id if not exists
-                                tempConnection.query(
-                                    `SELECT CONSTRAINT_NAME 
-                                     FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
-                                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'biodata' AND CONSTRAINT_TYPE = 'UNIQUE'`,
-                                    [dbConfig.database],
-                                    (err, results) => {
-                                        if (err) {
-                                            console.log('⚠️ Could not check biodata constraints:', err.message);
-                                        } else if (results.length === 0) {
-                                            // No unique constraint, add it
-                                            tempConnection.query(
-                                                `ALTER TABLE biodata ADD UNIQUE KEY unique_employee (employee_id)`,
-                                                (err) => {
-                                                    if (err) {
-                                                        console.log('⚠️ Failed to add unique constraint to biodata:', err.message);
-                                                    } else {
-                                                        console.log('✅ Added UNIQUE constraint to biodata.employee_id');
-                                                    }
-                                                }
-                                            );
-                                        }
-                                    }
-                                );
-
-                                // Check if default admin exists, if not create one
-                                tempConnection.query('SELECT id FROM users WHERE username = "admin"', async (err, results) => {
-                                    if (err) {
-                                        console.error('❌ Failed to check for admin user:', err);
-                                        // Set the global db connection
-                                        db = tempConnection;
-                                        resolve();
-                                        return;
-                                    }
-                                    
-                                    if (results.length === 0) {
-                                        // Create default admin (password: admin123)
-                                        const hashedPassword = await bcrypt.hash('admin123', 10);
-                                        tempConnection.query(
-                                            'INSERT INTO users (username, email, phone, password, user_type, email_verified) VALUES (?, ?, ?, ?, ?, TRUE)',
-                                            ['admin', 'admin@system.local', '+1-0000000000', hashedPassword, 'admin'],
-                                            (err) => {
-                                                if (err) {
-                                                    console.error('❌ Failed to create default admin:', err);
-                                                } else {
-                                                    console.log('✅ Default admin user created (username: admin, password: admin123)');
-                                                }
-                                                // Set the global db connection
-                                                db = tempConnection;
-                                                resolve();
-                                            }
-                                        );
-                                    } else {
-                                        console.log('✅ Admin user already exists');
-                                        // Update existing admin to be verified if not already
-                                        tempConnection.query(
-                                            'UPDATE users SET email_verified = TRUE WHERE username = "admin" AND email_verified = FALSE',
-                                            (err) => {
-                                                if (err) {
-                                                    console.log('⚠️ Could not update admin verification status');
-                                                }
-                                                // Set the global db connection
-                                                db = tempConnection;
-                                                resolve();
-                                            }
-                                        );
-                                    }
-                                });
+                                                            // Check if default admin exists, if not create one
+                                                            tempConnection.query('SELECT id FROM users WHERE username = "admin"', async (err, results) => {
+                                                                if (err) {
+                                                                    console.error('❌ Failed to check for admin user:', err);
+                                                                    // Set the global db connection
+                                                                    db = tempConnection;
+                                                                    resolve();
+                                                                    return;
+                                                                }
+                                                                
+                                                                if (results.length === 0) {
+                                                                    // Create default admin (password: admin123)
+                                                                    const hashedPassword = await bcrypt.hash('admin123', 10);
+                                                                    tempConnection.query(
+                                                                        'INSERT INTO users (username, email, phone, password, user_type, email_verified) VALUES (?, ?, ?, ?, ?, TRUE)',
+                                                                        ['admin', 'admin@system.local', '+1-0000000000', hashedPassword, 'admin'],
+                                                                        (err) => {
+                                                                            if (err) {
+                                                                                console.error('❌ Failed to create default admin:', err);
+                                                                            } else {
+                                                                                console.log('✅ Default admin user created (username: admin, password: admin123)');
+                                                                            }
+                                                                            // Set the global db connection
+                                                                            db = tempConnection;
+                                                                            resolve();
+                                                                        }
+                                                                    );
+                                                                } else {
+                                                                    console.log('✅ Admin user already exists');
+                                                                    // Set the global db connection
+                                                                    db = tempConnection;
+                                                                    resolve();
+                                                                }
+                                                            });
                                                         });
                                                     });
                                                 });
@@ -545,10 +454,6 @@ function createAllTables(tempConnection, resolve, reject) {
                             });
                         });
                     });
-                });
-            });
-        });
-    });
 }
 
 // ==================== Initialize Default Roles ====================
