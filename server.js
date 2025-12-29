@@ -44,19 +44,14 @@ emailTransporter.verify((error, success) => {
     }
 });
 
-// MySQL Database Connection
-// Supports both local development and Railway deployment
-const dbConfig = process.env.DATABASE_URL ? 
-    // Railway/Production: Use DATABASE_URL connection string
-    process.env.DATABASE_URL :
-    // Local development: Use individual environment variables
-    {
-        host: process.env.MYSQL_HOST || 'localhost',
-        user: process.env.MYSQL_USER || 'root',
-        password: process.env.MYSQL_PASSWORD || '',
-        database: process.env.MYSQL_DATABASE || 'employee_admin_system',
-        port: process.env.MYSQL_PORT || 3306
-    };
+// MySQL Database Connection (without database first)
+const dbConfig = {
+    host: process.env.MYSQL_HOST || 'localhost',
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || '',
+    database: process.env.MYSQL_DATABASE || 'employee_admin_system',
+    port: process.env.MYSQL_PORT || 3306
+};
 
 let db;
 
@@ -64,16 +59,12 @@ let db;
 async function initializeDatabase() {
     return new Promise((resolve, reject) => {
         // First connect without specifying database
-        const tempConnection = typeof dbConfig === 'string' ? 
-            // Railway: dbConfig is a connection string
-            mysql.createConnection(dbConfig) :
-            // Local: dbConfig is an object
-            mysql.createConnection({
-                host: dbConfig.host,
-                user: dbConfig.user,
-                password: dbConfig.password,
-                port: dbConfig.port
-            });
+        const tempConnection = mysql.createConnection({
+            host: dbConfig.host,
+            user: dbConfig.user,
+            password: dbConfig.password,
+            port: dbConfig.port
+        });
 
         tempConnection.connect((err) => {
             if (err) {
@@ -88,45 +79,23 @@ async function initializeDatabase() {
 
             console.log('✅ Connected to MySQL');
 
-            // Create database if it doesn't exist (skip for Railway connection string)
-            const databaseName = typeof dbConfig === 'string' ? 
-                null : // Railway manages database name
-                (dbConfig.database || 'employee_admin_system');
-            
-            if (!databaseName) {
-                // Railway: database already exists, just use the connection
-                db = tempConnection;
-                createTables(db, resolve, reject);
-            } else {
-                // Local: create database if needed
-                tempConnection.query(`CREATE DATABASE IF NOT EXISTS ${databaseName}`, (err) => {
+            // Create database if it doesn't exist
+            tempConnection.query(`CREATE DATABASE IF NOT EXISTS ${dbConfig.database}`, (err) => {
+                if (err) {
+                    console.error('❌ Failed to create database:', err);
+                    reject(err);
+                    return;
+                }
+
+                console.log('✅ Database ready');
+
+                // Now connect to the specific database
+                tempConnection.changeUser({ database: dbConfig.database }, (err) => {
                     if (err) {
-                        console.error('❌ Failed to create database:', err);
+                        console.error('❌ Failed to switch to database:', err);
                         reject(err);
                         return;
                     }
-
-                    console.log('✅ Database ready');
-
-                    // Now connect to the specific database
-                    tempConnection.changeUser({ database: databaseName }, (err) => {
-                        if (err) {
-                            console.error('❌ Failed to switch to database:', err);
-                            reject(err);
-                            return;
-                        }
-
-                        db = tempConnection;
-                        createTables(db, resolve, reject);
-                    });
-                });
-            }
-        });
-    });
-}
-
-// Separate function to create tables (used by both local and Railway)
-function createTables(connection, resolve, reject) {
 
                     // Create tables
                     const createUsersTable = `
@@ -276,7 +245,7 @@ function createTables(connection, resolve, reject) {
                     `;
 
                     // Execute table creation
-                    connection.query(createUsersTable, (err) => {
+                    tempConnection.query(createUsersTable, (err) => {
                         if (err) {
                             console.error('❌ Failed to create users table:', err);
                             reject(err);
@@ -285,7 +254,7 @@ function createTables(connection, resolve, reject) {
 
                         console.log('✅ Users table ready');
 
-                        connection.query(createLeaveTable, (err) => {
+                        tempConnection.query(createLeaveTable, (err) => {
                             if (err) {
                                 console.error('❌ Failed to create leave_applications table:', err);
                                 reject(err);
@@ -294,7 +263,7 @@ function createTables(connection, resolve, reject) {
 
                             console.log('✅ Leave applications table ready');
 
-                            connection.query(createBiodataTable, async (err) => {
+                            tempConnection.query(createBiodataTable, async (err) => {
                                 if (err) {
                                     console.error('❌ Failed to create biodata table:', err);
                                     reject(err);
@@ -303,7 +272,7 @@ function createTables(connection, resolve, reject) {
 
                                 console.log('✅ Biodata table ready');
 
-                                connection.query(createSalariesTable, (err) => {
+                                tempConnection.query(createSalariesTable, (err) => {
                                     if (err) {
                                         console.error('❌ Failed to create salaries table:', err);
                                         reject(err);
@@ -312,7 +281,7 @@ function createTables(connection, resolve, reject) {
 
                                     console.log('✅ Salaries table ready');
 
-                                    connection.query(createHolidaysTable, (err) => {
+                                    tempConnection.query(createHolidaysTable, (err) => {
                                         if (err) {
                                             console.error('❌ Failed to create holidays table:', err);
                                             reject(err);
@@ -321,7 +290,7 @@ function createTables(connection, resolve, reject) {
 
                                         console.log('✅ Holidays table ready');
 
-                                        connection.query(createGrievancesTable, (err) => {
+                                        tempConnection.query(createGrievancesTable, (err) => {
                                             if (err) {
                                                 console.error('❌ Failed to create grievances table:', err);
                                                 reject(err);
@@ -330,7 +299,7 @@ function createTables(connection, resolve, reject) {
 
                                             console.log('✅ Grievances table ready');
 
-                                            connection.query(createResignationsTable, async (err) => {
+                                            tempConnection.query(createResignationsTable, async (err) => {
                                                 if (err) {
                                                     console.error('❌ Failed to create resignations table:', err);
                                                     reject(err);
@@ -339,7 +308,7 @@ function createTables(connection, resolve, reject) {
 
                                                 console.log('✅ Resignations table ready');
 
-                                                connection.query(createActivityLogsTable, (err) => {
+                                                tempConnection.query(createActivityLogsTable, (err) => {
                                                     if (err) {
                                                         console.error('❌ Failed to create activity_logs table:', err);
                                                         reject(err);
@@ -348,7 +317,7 @@ function createTables(connection, resolve, reject) {
 
                                                     console.log('✅ Activity logs table ready');
 
-                                                    connection.query(createRolesTable, (err) => {
+                                                    tempConnection.query(createRolesTable, (err) => {
                                                         if (err) {
                                                             console.error('❌ Failed to create roles table:', err);
                                                             reject(err);
@@ -357,7 +326,7 @@ function createTables(connection, resolve, reject) {
 
                                                         console.log('✅ Roles table ready');
 
-                                                        connection.query(createUserRolesTable, (err) => {
+                                                        tempConnection.query(createUserRolesTable, (err) => {
                                                             if (err) {
                                                                 console.error('❌ Failed to create user_roles table:', err);
                                                                 reject(err);
@@ -367,21 +336,17 @@ function createTables(connection, resolve, reject) {
                                                             console.log('✅ User roles table ready');
 
                                 // Migration: Add email verification columns if they don't exist
-                                const databaseNameForQuery = typeof dbConfig === 'string' ? 
-                                    'railway' : // Railway uses 'railway' as database name
-                                    dbConfig.database;
-                                    
-                                connection.query(
+                                tempConnection.query(
                                     `SELECT COLUMN_NAME 
                                      FROM INFORMATION_SCHEMA.COLUMNS 
-                                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'email_verified'`,
-                                    [],
+                                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'email_verified'`,
+                                    [dbConfig.database],
                                     (err, results) => {
                                         if (err) {
                                             console.log('⚠️ Could not check for email_verified column:', err.message);
                                         } else if (results.length === 0) {
                                             // Column doesn't exist, add it
-                                            connection.query(
+                                            tempConnection.query(
                                                 `ALTER TABLE users 
                                                  ADD COLUMN email_verified BOOLEAN DEFAULT FALSE,
                                                  ADD COLUMN verification_token VARCHAR(255),
@@ -401,11 +366,11 @@ function createTables(connection, resolve, reject) {
                                 );
 
                                 // Migration: Remove email and phone from biodata table if they exist
-                                connection.query(
+                                tempConnection.query(
                                     `SELECT COLUMN_NAME 
                                      FROM INFORMATION_SCHEMA.COLUMNS 
-                                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'biodata' AND COLUMN_NAME IN ('email', 'phone')`,
-                                    [],
+                                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'biodata' AND COLUMN_NAME IN ('email', 'phone')`,
+                                    [dbConfig.database],
                                     (err, results) => {
                                         if (err) {
                                             console.log('⚠️ Could not check biodata columns:', err.message);
@@ -413,7 +378,7 @@ function createTables(connection, resolve, reject) {
                                             // Columns exist, drop them
                                             const columns = results.map(r => r.COLUMN_NAME);
                                             const dropStatements = columns.map(col => `DROP COLUMN ${col}`).join(', ');
-                                            connection.query(
+                                            tempConnection.query(
                                                 `ALTER TABLE biodata ${dropStatements}`,
                                                 (err) => {
                                                     if (err) {
@@ -428,17 +393,17 @@ function createTables(connection, resolve, reject) {
                                 );
 
                                 // Migration: Add UNIQUE constraint to biodata.employee_id if not exists
-                                connection.query(
+                                tempConnection.query(
                                     `SELECT CONSTRAINT_NAME 
                                      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
-                                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'biodata' AND CONSTRAINT_TYPE = 'UNIQUE'`,
-                                    [],
+                                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'biodata' AND CONSTRAINT_TYPE = 'UNIQUE'`,
+                                    [dbConfig.database],
                                     (err, results) => {
                                         if (err) {
                                             console.log('⚠️ Could not check biodata constraints:', err.message);
                                         } else if (results.length === 0) {
                                             // No unique constraint, add it
-                                            connection.query(
+                                            tempConnection.query(
                                                 `ALTER TABLE biodata ADD UNIQUE KEY unique_employee (employee_id)`,
                                                 (err) => {
                                                     if (err) {
@@ -453,9 +418,11 @@ function createTables(connection, resolve, reject) {
                                 );
 
                                 // Check if default admin exists, if not create one
-                                connection.query('SELECT id FROM users WHERE username = "admin"', async (err, results) => {
+                                tempConnection.query('SELECT id FROM users WHERE username = "admin"', async (err, results) => {
                                     if (err) {
                                         console.error('❌ Failed to check for admin user:', err);
+                                        // Set the global db connection
+                                        db = tempConnection;
                                         resolve();
                                         return;
                                     }
@@ -463,7 +430,7 @@ function createTables(connection, resolve, reject) {
                                     if (results.length === 0) {
                                         // Create default admin (password: admin123)
                                         const hashedPassword = await bcrypt.hash('admin123', 10);
-                                        connection.query(
+                                        tempConnection.query(
                                             'INSERT INTO users (username, email, phone, password, user_type, email_verified) VALUES (?, ?, ?, ?, ?, TRUE)',
                                             ['admin', 'admin@system.local', '+1-0000000000', hashedPassword, 'admin'],
                                             (err) => {
@@ -472,18 +439,22 @@ function createTables(connection, resolve, reject) {
                                                 } else {
                                                     console.log('✅ Default admin user created (username: admin, password: admin123)');
                                                 }
+                                                // Set the global db connection
+                                                db = tempConnection;
                                                 resolve();
                                             }
                                         );
                                     } else {
                                         console.log('✅ Admin user already exists');
                                         // Update existing admin to be verified if not already
-                                        connection.query(
+                                        tempConnection.query(
                                             'UPDATE users SET email_verified = TRUE WHERE username = "admin" AND email_verified = FALSE',
                                             (err) => {
                                                 if (err) {
                                                     console.log('⚠️ Could not update admin verification status');
                                                 }
+                                                // Set the global db connection
+                                                db = tempConnection;
                                                 resolve();
                                             }
                                         );
@@ -499,6 +470,10 @@ function createTables(connection, resolve, reject) {
                             });
                         });
                     });
+                });
+            });
+        });
+    });
 }
 
 // ==================== Initialize Default Roles ====================
